@@ -4,7 +4,10 @@ Tool to get timestamps for matches from Twitch Vods to view. This tries to match
 
 Note that this will be limited for events older than 2019 as FRC events weren't really broadcasted through Twitch prior to the 2019 season.
 
+
 ## Requirements:
+This is written in Python3.
+
 You need to create 3 text files in the base directory with their appropriate keys. Note that these should be kept private to avoid potential abuse:
 
 **TbaApiKey.txt**
@@ -19,15 +22,16 @@ Obtained by creating an application on Twitch (https://dev.twitch.tv/console/app
 
 Once you create an application on Twitch, go to its manage page and create a new secret. Copy that secret into this file.
 
+
 ## Usage
-<code>main.py [EventKey] [Twitch_Vod_Ids]...</code>
+<code>python main.py [EventKey] [Twitch_Vod_Ids]...</code>
 
 **Event_Key:** The event key on TheBlueAlliance (e.g. The 2019 Ventura Event is 2019cave)
 **Twitch_Vod_Ids:** The ID of the vod from twitch. If you navigate to the vod, its in the url like this: https://www.twitch.tv/videos/[VOD_ID]. You can put multiple vods at the end separated by a space when an event has them split up.
 
 Example:
 
-<code>main.py 2021txcls 1057112576 1057949790 1058960481 1059021401</code>
+<code>python main.py 2021txcls 1057112576 1057949790 1058960481 1059021401</code>
 
 This will attempt to match all of the 2021 Texas Cup - Lone Star Division matches with the start time of the matches using the Twitch Vods with the IDs 1057112576, 1057949790, 1058960481, 1059021401
 
