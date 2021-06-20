@@ -20,21 +20,45 @@ def main():
         eventKey = args.EventKey
 
     if not args.TwitchVodIds:
-        print("Error: No EventKey Argument Provided")
+        print("Error: No Twitch Vod Id Provided")
         return
     else:
         twitchVodIds = args.TwitchVodIds
 
-    with open('TbaApiKey.txt', 'r') as fid:
-        tbaKey = fid.readline().strip()
+    try:
+        with open('TbaApiKey.txt', 'r') as fid:
+            tbaKey = fid.readline().strip()
 
-    tbaUrl = 'https://www.thebluealliance.com/api/v3/event/{}/matches/simple'.format(eventKey)
+        with open('TwitchClientId.txt', 'r') as fid:
+            twitchClientId = fid.readline().strip()
+
+        with open('TwitchClientSecret.txt', 'r') as fid:
+            twitchClientSecret = fid.readline().strip()
+
+    except IOError as e:
+        print("Error: Could not get authentication keys from files")
+        print(e)
+        prin(sys.exec_type)
+        return
+
+    tbaVerifyEventUrl = 'https://www.thebluealliance.com/api/v3/event/{}'.format(eventKey)
+    tbaHeaders = {
+        'accept': 'application/json',
+        'X-TBA-Auth-Key': '{}'.format(tbaKey)
+    }
+    tbaData = requests.get(tbaVerifyEventUrl, headers=tbaHeaders).json()
+
+    if tbaData['Errors']:
+        print("Error: Event Key Invalid. Event Key Provided: {}".format(eventKey))
+        return
+
+    tbaQueryUrl = 'https://www.thebluealliance.com/api/v3/event/{}/matches/simple'.format(eventKey)
     tbaHeaders = {
         'accept': 'application/json',
         'X-TBA-Auth-Key': '{}'.format(tbaKey)
     }
 
-    tbaData = requests.get(tbaUrl, headers=tbaHeaders).json()
+    tbaData = requests.get(tbaQueryUrl, headers=tbaHeaders).json()
 
     matchInfo = {}
     matchTimes = {}
@@ -58,14 +82,7 @@ def main():
             matchData['timestamp_type'] = 'N/A'
         matchInfo[match['key']] = matchData
 
-    with open('TwitchClientId.txt', 'r') as fid:
-        twitchClientId = fid.readline().strip()
-
-    with open('TwitchClientSecret.txt', 'r') as fid:
-        twitchClientSecret = fid.readline().strip()
-
-    # Client
-
+    # Twitch Client Authorization
     twitchAuthorizationUrl = 'https://id.twitch.tv/oauth2/token'
     twitchAuthorizationUrl += '?client_id={}'.format(twitchClientId)
     twitchAuthorizationUrl += '&client_secret={}'.format(twitchClientSecret)
@@ -75,13 +92,12 @@ def main():
 
     twitchAccessToken = twitchAuthorizationResponse['access_token']
 
-    twitchVodAccessUrl = 'https://www.twitch.tv/videos/1059021401'
-    twitchVodInfoUrl = 'https://api.twitch.tv/helix/videos?id=1057112576'
     twitchVodHeaders = {
         "Authorization": "Bearer {}".format(twitchAccessToken),
         "Client-Id": twitchClientId
     }
 
+    # Get vod info using Twitch's API
     vodStartTimes = {}
     vodEndTimes = {}
     for vodId in twitchVodIds:
@@ -95,7 +111,7 @@ def main():
 
     sortedVodsByTimestamp = {k: v for k, v in sorted(vodStartTimes.items(), key=lambda item: item[1])}
 
-    # TBA timestamps are ~ 24 hours ahead
+    # TBA timestamps are ~ 24 hours ahead of Twitch timestamps?
     tbaUnixOffset = 24 * 3600
 
     for matchId in matchTimes:
@@ -136,12 +152,11 @@ def main():
 
             writer.writerow([matchKey, timestampType, vodUrl])
 
-    print("Done!")
+    print("Done! Results saved to {}".format(filename))
 
     return
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     main()
 
