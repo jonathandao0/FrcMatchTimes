@@ -43,15 +43,19 @@ def main():
             'key': match['key'],
             'match_time': match['time'],
             'actual_time': match['actual_time'],
+            'timestamp_type': '',
             'vod_url': ''
         }
 
         if match['actual_time']:
             matchTimes[match['key']] = match['actual_time']
+            matchData['timestamp_type'] = 'actual_time'
         elif match['time']:
             matchTimes[match['key']] = match['time']
+            matchData['timestamp_type'] = 'scheduled_time'
         else:
             matchTimes[match['key']] = 0
+            matchData['timestamp_type'] = 'N/A'
         matchInfo[match['key']] = matchData
 
     with open('TwitchClientId.txt', 'r') as fid:
@@ -118,7 +122,7 @@ def main():
 
     # Write to csv
     filename = '{}_vodTimestamps.csv'.format(eventKey)
-    fields = ['matchKey', 'vodUrl']
+    fields = ['matchKey','timestampType', 'vodUrl']
 
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
@@ -126,11 +130,13 @@ def main():
 
         for matchKey in matchInfo:
             vodUrl = matchInfo[matchKey]['vod_url']
-
+            timestampType = matchInfo[matchKey]['timestamp_type']
             if not vodUrl:
                 vodUrl = 'N/A'
 
-            writer.writerow([matchKey, vodUrl])
+            writer.writerow([matchKey, timestampType, vodUrl])
+
+    print("Done!")
 
     return
 
