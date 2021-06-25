@@ -5,35 +5,50 @@ import json
 import time
 import calendar
 
+import google_auth_oauthlib
+import googleapiclient.discovery
 import requests as requests
 
 parser = argparse.ArgumentParser()
 parser.add_argument("EventKey", help="Event Key (e.g. 2021txcls)")
-parser.add_argument("TwitchVodIds", help="Vod Id(s) (e.g. twitch.tv/videos/[VOD_ID]. Separate them with a space", nargs='*')
+parser.add_argument("-t", dest='Twitch', help="Vod Id(s) (e.g. twitch.tv/videos/[VOD_ID]. "
+                               "For multiple entries, separate them with a comma without spaces")
+parser.add_argument("-y", dest='Youtube', help="Youtube Video(s) (e.g. https://www.youtube.com/watch?v=[VIDEO_ID]]. "
+                               "For multiple entries, separate them with a comma without spaces")
 args = parser.parse_args()
+
 
 def main():
     if not args.EventKey:
         print("Error: No EventKey Argument Provided")
         return
     else:
-        eventKey = args.EventKey
+        event_key = args.EventKey
 
-    if not args.TwitchVodIds:
-        print("Error: No Twitch Vod Id Provided")
+    if not args.Twitch and not args.Youtube:
+        print("Error: No video ID provided")
         return
-    else:
-        twitchVodIds = args.TwitchVodIds
+
+    if args.Twitch:
+        twitch_vod_ids = args.Twitch.split(",")
+
+    if args.Youtube:
+        youtube_vod_ids = args.Youtube.split(",")
 
     try:
         with open('TbaApiKey.txt', 'r') as fid:
-            tbaKey = fid.readline().strip()
+            tba_key = fid.readline().strip()
 
-        with open('TwitchClientId.txt', 'r') as fid:
-            twitchClientId = fid.readline().strip()
+        if args.Twitch:
+            with open('TwitchClientId.txt', 'r') as fid:
+                twitch_client_id = fid.readline().strip()
 
-        with open('TwitchClientSecret.txt', 'r') as fid:
-            twitchClientSecret = fid.readline().strip()
+            with open('TwitchClientSecret.txt', 'r') as fid:
+                twitch_client_secret = fid.readline().strip()
+
+        if args.Youtube:
+            with open('YoutubeApiKey.txt', 'r') as fid:
+                youtube_api_key = fid.readline().strip()
 
     except IOError as e:
         print("Error: Could not get authentication keys from files")
@@ -41,28 +56,28 @@ def main():
         prin(sys.exec_type)
         return
 
-    tbaVerifyEventUrl = 'https://www.thebluealliance.com/api/v3/event/{}'.format(eventKey)
-    tbaHeaders = {
+    tba_verify_event_url = 'https://www.thebluealliance.com/api/v3/event/{}'.format(event_key)
+    tba_headers = {
         'accept': 'application/json',
-        'X-TBA-Auth-Key': '{}'.format(tbaKey)
+        'X-TBA-Auth-Key': '{}'.format(tba_key)
     }
-    tbaData = requests.get(tbaVerifyEventUrl, headers=tbaHeaders).json()
+    tba_data = requests.get(tba_verify_event_url, headers=tba_headers).json()
 
-    if tbaData['Errors']:
-        print("Error: Event Key Invalid. Event Key Provided: {}".format(eventKey))
-        return
+    #if tba_data['Errors']:
+    #    print("Error: Event Key Invalid. Event Key Provided: {}".format(event_key))
+    #    return
 
-    tbaQueryUrl = 'https://www.thebluealliance.com/api/v3/event/{}/matches/simple'.format(eventKey)
-    tbaHeaders = {
+    tba_query_url = 'https://www.thebluealliance.com/api/v3/event/{}/matches/simple'.format(event_key)
+    tba_headers = {
         'accept': 'application/json',
-        'X-TBA-Auth-Key': '{}'.format(tbaKey)
+        'X-TBA-Auth-Key': '{}'.format(tba_key)
     }
 
-    tbaData = requests.get(tbaQueryUrl, headers=tbaHeaders).json()
+    tba_data = requests.get(tba_query_url, headers=tba_headers).json()
 
-    matchInfo = {}
-    matchTimes = {}
-    for match in tbaData:
+    match_info = {}
+    match_times = {}
+    for match in tba_data:
         matchData = {
             'key': match['key'],
             'match_time': match['time'],
@@ -72,85 +87,152 @@ def main():
         }
 
         if match['actual_time']:
-            matchTimes[match['key']] = match['actual_time']
+            match_times[match['key']] = match['actual_time']
             matchData['timestamp_type'] = 'actual_time'
         elif match['time']:
-            matchTimes[match['key']] = match['time']
+            match_times[match['key']] = match['time']
             matchData['timestamp_type'] = 'scheduled_time'
         else:
-            matchTimes[match['key']] = 0
+            match_times[match['key']] = 0
             matchData['timestamp_type'] = 'N/A'
-        matchInfo[match['key']] = matchData
+        match_info[match['key']] = matchData
 
+    if args.Twitch:
+        processTwitchVideos(twitch_client_id, twitch_client_secret, twitch_vod_ids, event_key, match_times, match_info)
+
+    if args.Youtube:
+        processYoutubeVideos(youtube_api_key, youtube_vod_ids, event_key, match_times, match_info)
+
+    return
+
+
+def processTwitchVideos(twitch_client_id, twitch_client_secret, twitch_vod_ids, event_key, match_times, match_info):
     # Twitch Client Authorization
-    twitchAuthorizationUrl = 'https://id.twitch.tv/oauth2/token'
-    twitchAuthorizationUrl += '?client_id={}'.format(twitchClientId)
-    twitchAuthorizationUrl += '&client_secret={}'.format(twitchClientSecret)
-    twitchAuthorizationUrl += '&grant_type=client_credentials'
+    twitch_authorization_url = 'https://id.twitch.tv/oauth2/token'
+    twitch_authorization_url += '?client_id={}'.format(twitch_client_id)
+    twitch_authorization_url += '&client_secret={}'.format(twitch_client_secret)
+    twitch_authorization_url += '&grant_type=client_credentials'
 
-    twitchAuthorizationResponse = requests.post(twitchAuthorizationUrl).json()
+    twitch_authorization_response = requests.post(twitch_authorization_url).json()
 
-    twitchAccessToken = twitchAuthorizationResponse['access_token']
+    twitch_access_token = twitch_authorization_response['access_token']
 
-    twitchVodHeaders = {
-        "Authorization": "Bearer {}".format(twitchAccessToken),
-        "Client-Id": twitchClientId
+    twitch_vod_headers = {
+        "Authorization": "Bearer {}".format(twitch_access_token),
+        "Client-Id": twitch_client_id
     }
 
     # Get vod info using Twitch's API
-    vodStartTimes = {}
-    vodEndTimes = {}
-    for vodId in twitchVodIds:
-        twitchVodInfoUrl = 'https://api.twitch.tv/helix/videos?id={}'.format(vodId)
-        twitchVodInfo = requests.get(twitchVodInfoUrl, headers=twitchVodHeaders).json()
-        vodStartTime = twitchVodInfo['data'][0]['created_at']
-        vodDuration = '1970-1-1T{}'.format(twitchVodInfo['data'][0]['duration'])
-        vodDurationUnix = calendar.timegm(time.strptime(vodDuration, "%Y-%m-%dT%Hh%Mm%Ss"))
-        vodStartTimes[vodId] = calendar.timegm(time.strptime(vodStartTime, "%Y-%m-%dT%H:%M:%SZ"))
-        vodEndTimes[vodId] = vodStartTimes[vodId] + vodDurationUnix
+    vod_start_times = {}
+    vod_end_times = {}
+    for vodId in twitch_vod_ids:
+        twitch_vod_info_url = 'https://api.twitch.tv/helix/videos?id={}'.format(vodId)
+        twitch_vod_info = requests.get(twitch_vod_info_url, headers=twitch_vod_headers).json()
 
-    sortedVodsByTimestamp = {k: v for k, v in sorted(vodStartTimes.items(), key=lambda item: item[1])}
+        vod_start_time = twitch_vod_info['data'][0]['created_at']
+        vod_duration = '1970-1-1T{}'.format(twitch_vod_info['data'][0]['duration'])
+        vod_duration_unix = calendar.timegm(time.strptime(vod_duration, "%Y-%m-%dT%Hh%Mm%Ss"))
+        vod_start_times[vodId] = calendar.timegm(time.strptime(vod_start_time, "%Y-%m-%dT%H:%M:%SZ"))
+        vod_end_times[vodId] = vod_start_times[vodId] + vod_duration_unix
+
+    sorted_vods_by_timestamp = {k: v for k, v in sorted(vod_start_times.items(), key=lambda item: item[1])}
 
     # TBA timestamps are ~ 24 hours ahead of Twitch timestamps?
-    tbaUnixOffset = 24 * 3600
+    tba_unix_offset = 24 * 3600
 
-    for matchId in matchTimes:
-        matchTimes[matchId] = matchTimes[matchId] - tbaUnixOffset
+    for matchId in match_times:
+        match_times[matchId] = match_times[matchId] - tba_unix_offset
 
-    for vodId in sortedVodsByTimestamp:
-        vodStartTime = sortedVodsByTimestamp[vodId]
-        vodEndTime = vodEndTimes[vodId] + tbaUnixOffset
-        vodMatches = dict((k, v) for k, v in matchTimes.items() if v >= vodStartTime)
-        vodMatches = dict((k, v) for k, v in vodMatches.items() if v <= vodEndTime)
+    for vodId in sorted_vods_by_timestamp:
+        vod_start_time = sorted_vods_by_timestamp[vodId]
+        vod_end_time = vod_end_times[vodId] + tba_unix_offset
+        vod_matches = dict((k, v) for k, v in match_times.items() if v >= vod_start_time)
+        vod_matches = dict((k, v) for k, v in vod_matches.items() if v <= vod_end_time)
 
-        for matchKey in vodMatches:
-            if matchTimes[matchKey] == 0:
-                matchInfo[matchKey]['vod_url'] = 'N/A'
+        for matchKey in vod_matches:
+            if match_times[matchKey] == 0:
+                match_info[matchKey]['vod_url'] = 'N/A'
                 continue
 
-            timeOffset = matchTimes[matchKey] - vodStartTime
-            seconds = timeOffset % 60
-            minutesRaw = (timeOffset - seconds) / 60
-            minutes = minutesRaw % 60
-            hours = (minutesRaw - minutes) / 60
-            timeOffsetString = '{}h{}m{}s'.format(str(int(hours)), str(int(minutes)), str(int(seconds)))
-            matchInfo[matchKey]['vod_url'] = 'https://www.twitch.tv/videos/{}?t={}'.format(vodId, timeOffsetString)
+            time_offset = match_times[matchKey] - vod_start_time
+            seconds = time_offset % 60
+            minutes_raw = (time_offset - seconds) / 60
+            minutes = minutes_raw % 60
+            hours = (minutes_raw - minutes) / 60
+            time_offset_string = '{}h{}m{}s'.format(str(int(hours)), str(int(minutes)), str(int(seconds)))
+            match_info[matchKey]['vod_url'] = 'https://www.twitch.tv/videos/{}?t={}'.format(vodId, time_offset_string)
 
-    # Write to csv
-    filename = '{}_vodTimestamps.csv'.format(eventKey)
+    writeToCsv(event_key, match_info)
+
+    return
+
+
+def processYoutubeVideos(youtube_api_key, youtube_vod_ids, event_key, match_times, match_info):
+    api_service_name = "youtube"
+    api_version = "v3"
+    client_secrets_file = "YoutubeApiKey.txt"
+
+    # Get credentials and create an API client
+    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=youtube_api_key)
+
+    vod_start_times = {}
+    vod_end_times = {}
+    for vodId in youtube_vod_ids:
+        request = youtube.videos().list(
+            part="liveStreamingDetails,contentDetails",
+            id=vodId
+        )
+        youtube_video_info = request.execute()
+
+        vod_start_time = youtube_video_info['items'][0]['liveStreamingDetails']['actualStartTime']
+        vod_duration = '1970-1-1T{}'.format(youtube_video_info['items'][0]['contentDetails']['duration'])
+        vod_duration_unix = calendar.timegm(time.strptime(vod_duration, "%Y-%m-%dTPT%HH%MM%SS"))
+        vod_start_times[vodId] = calendar.timegm(time.strptime(vod_start_time, "%Y-%m-%dT%H:%M:%SZ"))
+        vod_end_times[vodId] = vod_start_times[vodId] + vod_duration_unix
+
+    sorted_vods_by_timestamp = {k: v for k, v in sorted(vod_start_times.items(), key=lambda item: item[1])}
+
+    tba_unix_offset = 0
+
+    for matchId in match_times:
+        match_times[matchId] = match_times[matchId] - tba_unix_offset
+
+    for vodId in sorted_vods_by_timestamp:
+        vod_start_time = sorted_vods_by_timestamp[vodId]
+        vod_end_time = vod_end_times[vodId] + tba_unix_offset
+        vod_matches = dict((k, v) for k, v in match_times.items() if v >= vod_start_time)
+        vod_matches = dict((k, v) for k, v in vod_matches.items() if v <= vod_end_time)
+
+        for matchKey in vod_matches:
+            if match_times[matchKey] == 0:
+                match_info[matchKey]['vod_url'] = 'N/A'
+                continue
+
+            time_offset = match_times[matchKey] - vod_start_time
+            seconds = time_offset
+            time_offset_string = '{}s'.format(str(int(seconds)))
+            match_info[matchKey]['vod_url'] = 'https://www.youtube.com/watch?v={}&t={}'.format(vodId, time_offset_string)
+
+    writeToCsv(event_key, match_info)
+
+    return
+
+
+def writeToCsv(event_key, match_info):
+    filename = '{}_vodTimestamps.csv'.format(event_key)
     fields = ['matchKey','timestampType', 'vodUrl']
 
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(fields)
 
-        for matchKey in matchInfo:
-            vodUrl = matchInfo[matchKey]['vod_url']
-            timestampType = matchInfo[matchKey]['timestamp_type']
-            if not vodUrl:
-                vodUrl = 'N/A'
+        for matchKey in match_info:
+            vod_url = match_info[matchKey]['vod_url']
+            timestamp_type = match_info[matchKey]['timestamp_type']
+            if not vod_url:
+                vod_url = 'N/A'
 
-            writer.writerow([matchKey, timestampType, vodUrl])
+            writer.writerow([matchKey, timestamp_type, vod_url])
 
     print("Done! Results saved to {}".format(filename))
 
