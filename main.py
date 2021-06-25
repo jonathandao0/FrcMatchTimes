@@ -1,11 +1,9 @@
 import argparse
 import csv
-import datetime
-import json
+import sys
 import time
 import calendar
 
-import google_auth_oauthlib
 import googleapiclient.discovery
 import requests as requests
 
@@ -53,7 +51,7 @@ def main():
     except IOError as e:
         print("Error: Could not get authentication keys from files")
         print(e)
-        prin(sys.exec_type)
+        print(sys.exec_type)
         return
 
     tba_verify_event_url = 'https://www.thebluealliance.com/api/v3/event/{}'.format(event_key)
@@ -63,9 +61,9 @@ def main():
     }
     tba_data = requests.get(tba_verify_event_url, headers=tba_headers).json()
 
-    #if tba_data['Errors']:
-    #    print("Error: Event Key Invalid. Event Key Provided: {}".format(event_key))
-    #    return
+    if 'Errors' in tba_data.keys():
+        print("Error: Event Key not recognized. Key given: {}".format(event_key)
+        return
 
     tba_query_url = 'https://www.thebluealliance.com/api/v3/event/{}/matches/simple'.format(event_key)
     tba_headers = {
@@ -78,7 +76,7 @@ def main():
     match_info = {}
     match_times = {}
     for match in tba_data:
-        matchData = {
+        match_data = {
             'key': match['key'],
             'match_time': match['time'],
             'actual_time': match['actual_time'],
@@ -88,14 +86,14 @@ def main():
 
         if match['actual_time']:
             match_times[match['key']] = match['actual_time']
-            matchData['timestamp_type'] = 'actual_time'
+            match_data['timestamp_type'] = 'actual_time'
         elif match['time']:
             match_times[match['key']] = match['time']
-            matchData['timestamp_type'] = 'scheduled_time'
+            match_data['timestamp_type'] = 'scheduled_time'
         else:
             match_times[match['key']] = 0
-            matchData['timestamp_type'] = 'N/A'
-        match_info[match['key']] = matchData
+            match_data['timestamp_type'] = 'N/A'
+        match_info[match['key']] = match_data
 
     if args.Twitch:
         processTwitchVideos(twitch_client_id, twitch_client_secret, twitch_vod_ids, event_key, match_times, match_info)
@@ -220,10 +218,10 @@ def processYoutubeVideos(youtube_api_key, youtube_vod_ids, event_key, match_time
 
 def writeToCsv(event_key, match_info):
     filename = '{}_vodTimestamps.csv'.format(event_key)
-    fields = ['matchKey','timestampType', 'vodUrl']
+    fields = ['matchKey', 'timestampType', 'vodUrl']
 
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
+    with open(filename, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',')
         writer.writerow(fields)
 
         for matchKey in match_info:
