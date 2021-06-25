@@ -7,7 +7,7 @@ Tool to get timestamps for matches from Twitch Vods or Youtube livestream record
 
 This is written in Python3.
 
-You need to create 3 text files in the base directory with their appropriate keys. Note that these should be kept private to avoid potential abuse:
+You need to create text files in the base directory with their appropriate keys. Note that these should be kept private to avoid potential abuse:
 
 **TbaApiKey.txt**
 
@@ -26,7 +26,7 @@ Once you create an application on Twitch, go to its manage page and create a new
 
 
 ### For Youtube Livestreams:
-
+**YoutubeApiKey.txt**
 You need to create a Google Cloud Platform Project and then use the console to generate an API Key (https://console.developers.google.com/apis/credentials). Once you have done this, you will also need to enable the Youtube Data API in the project to make requests (https://console.cloud.google.com/marketplace/product/google/youtube.googleapis.com)
 
 
@@ -45,7 +45,7 @@ This will attempt to generate Youtube URLs with the appropriate timestamps of th
   
 <code>python main.py 2021txcls -t 1057112576,1057949790,1058960481,1059021401</code>
 
-This will attempt to generate twitch.tv URLs with the appropriate timestamps of the 2021 Texas Cup - Lone Star Division matches using the Twitch Vods with the IDs 1057112576, 1057949790, 1058960481, 1059021401
+This will attempt to generate Twitch URLs with the appropriate timestamps of the 2021 Texas Cup - Lone Star Division matches using the Twitch Vods with the IDs 1057112576, 1057949790, 1058960481, 1059021401
 
   
 ## Output
