@@ -25,7 +25,7 @@ Obtained by creating an application on Twitch (https://dev.twitch.tv/console/app
 Once you create an application on Twitch, go to its manage page and create a new secret. Copy that secret into this file.
 
 
-### For Youtube Livestreams:
+### For Recorded Youtube Livestreams:
 **YoutubeApiKey.txt**
 You need to create a Google Cloud Platform Project and then use the console to generate an API Key (https://console.developers.google.com/apis/credentials). Once you have done this, you will also need to enable the Youtube Data API in the project to make requests (https://console.cloud.google.com/marketplace/product/google/youtube.googleapis.com)
 
