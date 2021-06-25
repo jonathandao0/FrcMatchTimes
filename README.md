@@ -3,6 +3,8 @@
 Tool to get timestamps for matches from Twitch Vods or Youtube livestream recordings to view. This tries to match the match time taken from TheBlueAlliance to generate the appropriate URLs for Twitch/Youtube to watch the match given the provided Twitch Vod IDs/Youtube Video IDs. This tries to use the actual match time if it is given and falls back to the scheduled match time if no actual match time is given. Note that if the url is generated using the scheduled match time, it will most likely be off. 
 
 
+[Chief Delphi Thread](https://www.chiefdelphi.com/t/automated-access-to-match-videos-from-recorded-livestreams/394815)
+
 ## Requirements:
 
 This is written in Python3.
